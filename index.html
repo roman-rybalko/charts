@@ -4,14 +4,14 @@
 <script src="chart.js"></script>
 <link rel="stylesheet" href="chart.css">
 <script>
-    var data_file = "chart_data.json";
+    const data_file = "chart_data.json";
     $(document).ready(function(){
         $("body").text("Loading " + data_file + " ...");
         $.getJSON(data_file).done(function(data){
             $("body").text(data.length + " charts loaded");
-            for (var i in data){
-                var div_id = "chart" + i;
-                var chart_data = data[i];
+            for (const i in data){
+                const div_id = "chart" + i;
+                const chart_data = data[i];
                 $("body").append("<div id='" + div_id + "'></div>");
                 chart(div_id, chart_data);
             }
