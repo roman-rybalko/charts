@@ -1,0 +1,25 @@
+<html>
+<head>
+<script src="//ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+<script src="chart.js"></script>
+<script>
+    var data_file = "chart_data.json";
+    $(document).ready(function(){
+        $("body").text("Loading " + data_file + " ...");
+        $.getJSON(data_file).done(function(data){
+            $("body").text(data.length + " charts loaded");
+            for (var i in data){
+                var div_id = "chart" + i;
+                var chart_data = data[i];
+                $("body").append("<div id='" + div_id + "'></div>");
+                chart(div_id, chart_data);
+            }
+        }).fail(function(jqXHR){
+            $("body").text("Loading " + data_file + " failed: " + jqXHR.status + " " + jqXHR.statusText);
+        });
+    });
+</script>
+</head>
+<body>
+</body>
+</html>
