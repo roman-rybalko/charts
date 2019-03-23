@@ -257,18 +257,6 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
     ctx2d.moveTo(chart_state.chart.cursor, 0);
     ctx2d.lineTo(chart_state.chart.cursor, h);
     ctx2d.stroke();
-
-    const c_i = Math.round(1.0 * chart_state.chart.cursor / w * t_count) + 1;
-    chart_column_foreach(chart_data, function(column_id, column_data){
-        if (!chart_state.columns_enabled[column_id]){
-            return;
-        }
-        const c_h = Math.round(1.0 * (column_data[c_i] - min) / (max - min) * h);
-        ctx2d.strokeStyle = chart_data.colors[column_id];
-        ctx2d.beginPath();
-        ctx2d.arc(chart_state.chart.cursor, h-c_h, 3, 0, 2 * Math.PI);
-        ctx2d.stroke();
-    });
 }
 
 function chart_chart_create(chart_id, chart_data, chart_state){
