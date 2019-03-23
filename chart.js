@@ -2,10 +2,8 @@ const chart_scroll_width = 10; // px
 const chart_scroll_height = 2; // px
 const chart_scroll_color_bg = "#f5f9fb";
 const chart_scroll_color_fg = "#ddeaf3";
-const chart_chart_color_bg = "#ecf0f3";
-const chart_chart_color_bg_alpha = 0.2;
+const chart_chart_color_bg = "#dfe6eb";
 const chart_chart_color_fg = "#96a2aa";
-const chart_chart_color_fg_alpha = 1.0;
 
 function chart_create(chart_id, container){
     container.innerHTML = "<div class='chart_chart_wrap'>"
@@ -184,6 +182,12 @@ function chart_gl_draw(gl, gl_state, chart_state, no_scale){
     }
 }
 
+function chart_chart_2d_init(ctx2d, chart_state){
+    chart_state.chart = {
+        cursor: 0
+    };
+}
+
 function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
     const h = ctx2d.canvas.height;
     const w = ctx2d.canvas.width;
@@ -207,9 +211,7 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
     const h1 = Math.round(1.0 * (step_data.value1 - min) / (max - min) * h);
     const h_step = Math.round(1.0 * step_data.value1 / (max - min) * h);
 
-    ctx2d.fillStyle = chart_chart_color_bg;
-    ctx2d.globalAlpha = chart_chart_color_bg_alpha;
-    ctx2d.lineWidth = 1;
+    ctx2d.strokeStyle = chart_chart_color_bg;
     ctx2d.beginPath();
     ctx2d.moveTo(0, h);
     ctx2d.lineTo(w, h);
@@ -220,7 +222,6 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
     ctx2d.stroke();
 
     ctx2d.fillStyle = chart_chart_color_fg;
-    ctx2d.globalAlpha = chart_chart_color_fg_alpha;
     ctx2d.fillText(min, 0, h);
     for (let value = step_data.value1, y = h1; value < max; value += step_data.step, y += h_step){
         ctx2d.fillText(value, 0, h-y);
@@ -242,7 +243,6 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
     const t_begin = Math.floor(t_count * chart_state.scroll_left) + 1;
     const t_end = Math.ceil(t_count * chart_state.scroll_right) + 1;
     ctx2d.fillStyle = chart_chart_color_fg;
-    ctx2d.globalAlpha = chart_chart_color_fg_alpha;
     for (let i = t_begin, t_w = 0; i < t_end; ++i){
         const x = Math.round(1.0 * (i - t_begin) / (t_end - t_begin) * w);
         if (x < t_w){
@@ -251,11 +251,30 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
         ctx2d.fillText(new Date(t_line[i]).toString(), x, h);
         t_w += ctx2d.measureText(new Date(t_line[i]).toString()).width * 1.5;
     }
+
+    ctx2d.strokeStyle = chart_chart_color_bg;
+    ctx2d.beginPath();
+    ctx2d.moveTo(chart_state.chart.cursor, 0);
+    ctx2d.lineTo(chart_state.chart.cursor, h);
+    ctx2d.stroke();
+
+    const c_i = Math.round(1.0 * chart_state.chart.cursor / w * t_count) + 1;
+    chart_column_foreach(chart_data, function(column_id, column_data){
+        if (!chart_state.columns_enabled[column_id]){
+            return;
+        }
+        const c_h = Math.round(1.0 * (column_data[c_i] - min) / (max - min) * h);
+        ctx2d.strokeStyle = chart_data.colors[column_id];
+        ctx2d.beginPath();
+        ctx2d.arc(chart_state.chart.cursor, h-c_h, 3, 0, 2 * Math.PI);
+        ctx2d.stroke();
+    });
 }
 
 function chart_chart_create(chart_id, chart_data, chart_state){
     const chart_canvas_2d = document.getElementById(chart_id + "_chart1");
     const chart_2d = chart_canvas_2d.getContext("2d");
+    chart_chart_2d_init(chart_2d, chart_state);
 
     const chart_canvas_gl = document.getElementById(chart_id + "_chart2");
     const chart_gl = chart_canvas_gl.getContext("webgl");
@@ -278,6 +297,13 @@ function chart_chart_create(chart_id, chart_data, chart_state){
     }
     onresize();
     window.addEventListener("resize", onresize);
+
+    function cursor_update(e){
+        const x = e.clientX - chart_canvas_2d.getBoundingClientRect().left - window.scrollX;
+        chart_state.chart.cursor = x;
+        chart_chart_2d_draw(chart_2d, chart_data, chart_state);
+    }
+    chart_canvas_2d.addEventListener("mousemove", cursor_update);
 }
 
 function chart_scroll_2d_init(ctx2d, chart_state){
