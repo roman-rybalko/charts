@@ -4,7 +4,8 @@
 <script src="chart.js"></script>
 <link rel="stylesheet" href="chart.css">
 <script>
-    const data_file = "chart_data.json";
+function load(){
+    const data_file = $("#url").val();
     $(document).ready(function(){
         $("body").text("Loading " + data_file + " ...");
         $.getJSON(data_file).done(function(data){
@@ -20,14 +21,16 @@
             $("body").text("Loading " + data_file + " failed: " + jqXHR.status + " " + jqXHR.statusText);
         });
     });
+}
 
-    let day = true;
-    function change_bgcolor(){
-        document.body.style.backgroundColor = day ? "black" : "white";
-        day = !day;
-    }
+let day = true;
+function change_bgcolor(){
+    document.body.style.backgroundColor = day ? "black" : "white";
+    day = !day;
+}
 </script>
 </head>
 <body>
+<input id="url" type="text" value="chart_data.json"><input type="button" value="Load" onclick="load()">
 </body>
 </html>
