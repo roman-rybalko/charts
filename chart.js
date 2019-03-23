@@ -1,7 +1,7 @@
 const chart_scroll_width = 10; // px
 const chart_scroll_height = 2; // px
-const chart_scroll_color_bg = "#f5f9fb";
-const chart_scroll_color_fg = "#ddeaf3";
+const chart_scroll_color_bg = "#f5f9fb80";
+const chart_scroll_color_fg = "#ddeaf380";
 const chart_chart_color_bg = "#dfe6eb";
 const chart_chart_color_fg = "#96a2aa";
 
