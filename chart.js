@@ -25,15 +25,27 @@ function chart_column_foreach(chart_data, callback){
     }
 }
 
-function chart_legend_create(chart_id, chart_data){
+function chart_legend_create(chart_id, chart_data, chart_state){
     const legend_div = document.getElementById(chart_id + "_legend");
+    chart_state.columns_enabled = {};
+
     chart_column_foreach(chart_data, function(column_id){
         const column_name = chart_data.names[column_id];
         const column_color = chart_data.colors[column_id];
         legend_div.innerHTML += "<label class='chart_legend_checkbox' style='--main-bg-color:" + column_color + ";'>" + column_name
-            + "<input type='checkbox' checked='checked'>"
+            + "<input type='checkbox' checked='checked' id='" + chart_id + "_legend_column_" + column_id + "'>"
             + "<span class='chart_legend_checkbox_customized'></span>"
             + "</label>";
+    });
+
+    chart_column_foreach(chart_data, function(column_id){
+        const column_control = document.getElementById(chart_id + "_legend_column_" + column_id);
+        chart_state.columns_enabled[column_id] = true;
+        column_control.addEventListener("change", function(){
+            chart_state.columns_enabled[column_id] = !chart_state.columns_enabled[column_id];
+            chart_state.scroll_draw();
+            chart_state.chart_draw();
+        });
     });
 }
 
@@ -175,13 +187,16 @@ function chart_gl_init(gl, chart_data){
     return gl_state;
 }
 
-function chart_gl_draw(gl, gl_state, chart_state){
+function chart_gl_draw(gl, gl_state, chart_state, no_scale){
     gl.clear(gl.COLOR_BUFFER_BIT);
     gl.uniformMatrix4fv(gl_state.proj_loc, false, new Float32Array(chart_proj_ortho(0, gl_state.count, gl_state.y_min, gl_state.y_max)));
-    if (chart_state){
+    if (!no_scale){
         gl.uniformMatrix4fv(gl_state.view_loc, false, new Float32Array(chart_view_persp(0, 1, chart_state.scroll_left, chart_state.scroll_right)));
     }
     for (const i in gl_state.columns){
+        if (!chart_state.columns_enabled[i]){
+            continue;
+        }
         gl.bindBuffer(gl.ARRAY_BUFFER, gl_state.columns[i].y_buf);
         gl.vertexAttribPointer(gl_state.y_loc, 1, gl.FLOAT, false, 0, 4 /* skip the 1st element */);
         gl.uniform4fv(gl_state.color_loc, gl_state.columns[i].color);
@@ -252,6 +267,10 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
     const scroll_gl = scroll_canvas_gl.getContext("webgl");
     const scroll_gl_state = chart_gl_init(scroll_gl, chart_data);
 
+    chart_state.scroll_draw = function(){
+        chart_gl_draw(scroll_gl, scroll_gl_state, chart_state, "no scale");
+    };
+
     function onresize(){
         scroll_canvas_2d.width = scroll_canvas_2d.clientWidth;
         scroll_canvas_2d.height = scroll_canvas_2d.clientHeight;
@@ -265,7 +284,7 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
         scroll_gl.viewport(0, 0, scroll_canvas_gl.width, scroll_canvas_gl.height);
 
         chart_scroll_2d_draw(scroll_2d, chart_state);
-        chart_gl_draw(scroll_gl, scroll_gl_state);
+        chart_state.scroll_draw();
     }
     onresize();
     window.addEventListener("resize", onresize);
