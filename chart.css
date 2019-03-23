@@ -99,3 +99,11 @@
     -ms-transform: rotate(45deg);
     transform: rotate(45deg);
 }
+
+.chart_caption {
+    visibility: hidden;
+    border-radius: 5px;
+    border: 2px solid #e6ecf0;
+    position: absolute;
+    top: 20px;
+}

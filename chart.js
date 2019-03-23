@@ -9,12 +9,14 @@ function chart_create(chart_id, container){
     container.innerHTML = "<div class='chart_chart_wrap'>"
         + "<canvas id='" + chart_id + "_chart1' class='chart_chart'></canvas>"
         + "<canvas id='" + chart_id + "_chart2' class='chart_chart' style='z-index:-1;'></canvas>"
+        + "<div id='" + chart_id + "_caption' class='chart_caption'></div>"
         + "</div>"
         + "<div class='chart_scroll_wrap'>"
         + "<canvas id='" + chart_id + "_scroll1' class='chart_scroll' style='z-index:-1;'></canvas>"
         + "<canvas id='" + chart_id + "_scroll2' class='chart_scroll'></canvas>"
         + "</div>"
-        + "<div id='" + chart_id + "_legend' class='chart_legend'></div>";
+        + "<div id='" + chart_id + "_legend' class='chart_legend'></div>"
+    ;
 }
 
 function chart_column_foreach(chart_data, callback){
@@ -25,6 +27,16 @@ function chart_column_foreach(chart_data, callback){
         }
         callback(column_id, chart_data.columns[i]);
     }
+}
+
+function chart_time_data(chart_data){
+    for (const i in chart_data.columns){
+        const column_id = chart_data.columns[i][0];
+        if (chart_data.types[column_id] == "x"){
+            return chart_data.columns[i];
+        }
+    }
+    return null;
 }
 
 function chart_legend_create(chart_id, chart_data, chart_state){
@@ -182,9 +194,10 @@ function chart_gl_draw(gl, gl_state, chart_state, no_scale){
     }
 }
 
-function chart_chart_2d_init(ctx2d, chart_state){
+function chart_chart_init(ctx2d, chart_state){
     chart_state.chart = {
-        cursor: 0
+        cursor: 0,
+        cursor_x: 0
     };
 }
 
@@ -227,17 +240,7 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
         ctx2d.fillText(value, 0, h-y);
     }
 
-    function time_data(chart_data){
-        for (const i in chart_data.columns){
-            const column_id = chart_data.columns[i][0];
-            if (chart_data.types[column_id] == "x"){
-                return chart_data.columns[i];
-            }
-        }
-        return null;
-    }
-
-    const t_line = time_data(chart_data);
+    const t_line = chart_time_data(chart_data);
     // skip the 1st
     const t_count = t_line.length - 1;
     const t_begin = Math.floor(t_count * chart_state.scroll_left) + 1;
@@ -252,17 +255,45 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
         t_w += ctx2d.measureText(new Date(t_line[i]).toString()).width * 1.5;
     }
 
-    ctx2d.strokeStyle = chart_chart_color_bg;
-    ctx2d.beginPath();
-    ctx2d.moveTo(chart_state.chart.cursor, 0);
-    ctx2d.lineTo(chart_state.chart.cursor, h);
-    ctx2d.stroke();
+    const c_x = chart_state.chart.cursor_x;
+    if (c_x){
+        ctx2d.strokeStyle = chart_chart_color_bg;
+        ctx2d.beginPath();
+        ctx2d.moveTo(c_x, 0);
+        ctx2d.lineTo(c_x, h);
+        ctx2d.stroke();
+    }
+}
+
+function chart_chart_html_draw(chart_id, chart_data, chart_state){
+    const cursor = chart_state.chart.cursor;
+    const caption_div = document.getElementById(chart_id + "_caption");
+    if (cursor){
+        caption_div.style.visibility = "visible";
+        caption_div.style.left = chart_state.chart.cursor_x - 20;
+        const t_data = chart_time_data(chart_data);
+        // skip the 1st
+        const count = t_data.length - 1;
+        const i = Math.round(chart_state.scroll_left * count + (chart_state.scroll_right - chart_state.scroll_left) * count * cursor) + 1;
+        caption_div.innerHTML = new Date(t_data[i]).toString() + "<br>";
+        chart_column_foreach(chart_data, function(column_id, column_data){
+            if (!chart_state.columns_enabled[column_id]){
+                return;
+            }
+            const column_name = chart_data.names[column_id];
+            const column_color = chart_data.colors[column_id];
+            caption_div.innerHTML += "<div style='color:" + column_color + ";'>" + column_data[i]
+                + column_name + "</div>";
+        });
+    } else {
+        caption_div.style.visibility = "hidden";
+    }
 }
 
 function chart_chart_create(chart_id, chart_data, chart_state){
     const chart_canvas_2d = document.getElementById(chart_id + "_chart1");
     const chart_2d = chart_canvas_2d.getContext("2d");
-    chart_chart_2d_init(chart_2d, chart_state);
+    chart_chart_init(chart_2d, chart_state);
 
     const chart_canvas_gl = document.getElementById(chart_id + "_chart2");
     const chart_gl = chart_canvas_gl.getContext("webgl");
@@ -270,6 +301,7 @@ function chart_chart_create(chart_id, chart_data, chart_state){
 
     chart_state.chart_draw = function(){
         chart_chart_2d_draw(chart_2d, chart_data, chart_state);
+        chart_chart_html_draw(chart_id, chart_data, chart_state);
         chart_gl_draw(chart_gl, chart_gl_state, chart_state);
     }
 
@@ -288,8 +320,10 @@ function chart_chart_create(chart_id, chart_data, chart_state){
 
     function cursor_update(e){
         const x = e.clientX - chart_canvas_2d.getBoundingClientRect().left - window.scrollX;
-        chart_state.chart.cursor = x;
+        chart_state.chart.cursor = 1.0 * x / chart_canvas_2d.width;
+        chart_state.chart.cursor_x = x;
         chart_chart_2d_draw(chart_2d, chart_data, chart_state);
+        chart_chart_html_draw(chart_id, chart_data, chart_state);
     }
     chart_canvas_2d.addEventListener("mousemove", cursor_update);
 }
@@ -418,6 +452,7 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
             chart_state.scroll.last_x = x;
             window.addEventListener("mousemove", change);
             window.addEventListener("mouseup", stop_change);
+            chart_state.chart.cursor = 0;
         }
     }
     scroll_canvas_gl.addEventListener("mousedown", start_change);
