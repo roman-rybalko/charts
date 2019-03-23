@@ -2,6 +2,8 @@ const chart_scroll_width = 10; // px
 const chart_scroll_height = 2; // px
 const chart_scroll_color_bg = "#f5f9fb";
 const chart_scroll_color_fg = "#ddeaf3";
+const chart_chart_color_bg = "#ecf0f3";
+const chart_chart_color_fg = "#96a2aa";
 
 function chart_create(chart_id, container){
     container.innerHTML = "<div class='chart_chart_wrap'>"
@@ -43,6 +45,7 @@ function chart_legend_create(chart_id, chart_data, chart_state){
         chart_state.columns_enabled[column_id] = true;
         column_control.addEventListener("change", function(){
             chart_state.columns_enabled[column_id] = !chart_state.columns_enabled[column_id];
+            chart_state.compute();
             chart_state.scroll_draw();
             chart_state.chart_draw();
         });
@@ -111,30 +114,6 @@ function chart_view_persp(left, right, zoom_left, zoom_right){
     return chart_proj_ortho(-1.0+2.0*zoom_left/(right-left), -1.0+2.0*zoom_right/(right-left), -1.0, 1.0);
 }
 
-function chart_minmax(arr, offset, accessor){
-    if (!offset){
-        offset = 0;
-    }
-    if (!accessor){
-        accessor = function(x){return x;};
-    }
-    let min = null;
-    let max = null;
-    for (const i in arr){
-        if (--offset >= 0){
-            continue;
-        }
-        const value = accessor(arr[i]);
-        if (min == null || min > value){
-            min = value;
-        }
-        if (max == null || max < value){
-            max = value;
-        }
-    }
-    return {min: min, max: max};
-}
-
 function chart_gl_init(gl, chart_data){
     const gl_state = {};
 
@@ -168,10 +147,7 @@ function chart_gl_init(gl, chart_data){
         gl_column_data.y_buf = gl.createBuffer();
         gl.bindBuffer(gl.ARRAY_BUFFER, gl_column_data.y_buf);
         gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(column_data), gl.STATIC_DRAW);
-        gl_column_data.y_minmax = chart_minmax(column_data, 1);
     });
-    gl_state.y_min = chart_minmax(gl_state.columns, 0, function(v){return v.y_minmax.min;}).min;
-    gl_state.y_max = chart_minmax(gl_state.columns, 0, function(v){return v.y_minmax.max;}).max;
 
     const identity_data = new Float32Array([
         1.0, 0.0, 0.0, 0.0,
@@ -189,8 +165,10 @@ function chart_gl_init(gl, chart_data){
 
 function chart_gl_draw(gl, gl_state, chart_state, no_scale){
     gl.clear(gl.COLOR_BUFFER_BIT);
-    gl.uniformMatrix4fv(gl_state.proj_loc, false, new Float32Array(chart_proj_ortho(0, gl_state.count, gl_state.y_min, gl_state.y_max)));
-    if (!no_scale){
+    if (no_scale){
+        gl.uniformMatrix4fv(gl_state.proj_loc, false, new Float32Array(chart_proj_ortho(0, gl_state.count, chart_state.enabled_minmax.min, chart_state.enabled_minmax.max)));
+    } else {
+        gl.uniformMatrix4fv(gl_state.proj_loc, false, new Float32Array(chart_proj_ortho(0, gl_state.count, chart_state.scaled_minmax.min, chart_state.scaled_minmax.max)));
         gl.uniformMatrix4fv(gl_state.view_loc, false, new Float32Array(chart_view_persp(0, 1, chart_state.scroll_left, chart_state.scroll_right)));
     }
     for (const i in gl_state.columns){
@@ -204,8 +182,29 @@ function chart_gl_draw(gl, gl_state, chart_state, no_scale){
     }
 }
 
-function chart_chart_2d_draw(ctx_2d, chart_data, chart_state){
+function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
+    const h = ctx2d.canvas.height;
+    const w = ctx2d.canvas.width;
+    ctx2d.clearRect(0, 0, w, h);
 
+    const line_cnt = 6;
+
+    ctx2d.fillStyle = chart_chart_color_bg;
+    ctx2d.lineWidth = 1;
+    ctx2d.beginPath();
+    const h1 = h / line_cnt;
+    for (let y = 0; y < h; y += h1){
+        ctx2d.moveTo(0, h-y);
+        ctx2d.lineTo(w, h-y);
+    }
+    ctx2d.stroke();
+
+    ctx2d.fillStyle = chart_chart_color_fg;
+    const minmax = chart_data_minmax(chart_data, chart_state);
+    const value_step = (minmax.max - minmax.min) / line_cnt;
+    for (let value = minmax.min, y = 0; value < minmax.max; value += value_step, y += h1){
+        ctx2d.fillText(Math.ceil(value), 0, h-y);
+    }
 }
 
 function chart_chart_create(chart_id, chart_data, chart_state){
@@ -235,10 +234,10 @@ function chart_chart_create(chart_id, chart_data, chart_state){
     window.addEventListener("resize", onresize);
 }
 
-function chart_scroll_2d_init(ctx_2d, chart_state){
+function chart_scroll_2d_init(ctx2d, chart_state){
     chart_state.scroll = {
-        left: chart_state.scroll_left * ctx_2d.canvas.width,
-        right: chart_state.scroll_right * ctx_2d.canvas.width,
+        left: chart_state.scroll_left * ctx2d.canvas.width,
+        right: chart_state.scroll_right * ctx2d.canvas.width,
         scaling_left: false,
         scaling_right: false,
         moving: false
@@ -331,6 +330,7 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
         }
         if (changed){
             chart_state.scroll.last_x = x;
+            chart_state.compute();
             chart_scroll_2d_draw(scroll_2d, chart_state);
             chart_state.chart_draw();
         }
@@ -363,11 +363,40 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
     scroll_canvas_gl.addEventListener("mousedown", start_change);
 }
 
+function chart_data_minmax(chart_data, chart_state, no_scale){
+    // skip the 1st
+    const count = chart_data.columns[0].length - 1;
+    const begin = no_scale ? 1 : Math.floor(count * chart_state.scroll_left) + 1;
+    const end = no_scale ? count + 1 : Math.ceil(count * chart_state.scroll_right) + 1;
+    let min = null;
+    let max = null;
+    chart_column_foreach(chart_data, function(column_id, column_data){
+        if (!chart_state.columns_enabled[column_id]){
+            return;
+        }
+        for (let i = begin; i < end; ++i){
+            if (min == null || min > column_data[i]){
+                min = column_data[i];
+            }
+            if (max == null || max < column_data[i]){
+                max = column_data[i];
+            }
+        }
+    });
+    return {min: min, max: max};
+}
+
 function chart(div_id, chart_data){
     const container = document.getElementById(div_id);
     chart_create(div_id, container);
     const chart_state = {scroll_left: 0, scroll_right: 1};
+    chart_state.compute = function(){
+        chart_state.scaled_minmax = chart_data_minmax(chart_data, chart_state);
+        chart_state.enabled_minmax = chart_data_minmax(chart_data, chart_state, "no scale");
+    };
     chart_legend_create(div_id, chart_data, chart_state);
+    chart_state.enabled_minmax = chart_data_minmax(chart_data, chart_state, "no scale");
     chart_scroll_create(div_id, chart_data, chart_state);
+    chart_state.scaled_minmax = chart_data_minmax(chart_data, chart_state);
     chart_chart_create(div_id, chart_data, chart_state);
 }
