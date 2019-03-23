@@ -3,7 +3,9 @@ const chart_scroll_height = 2; // px
 const chart_scroll_color_bg = "#f5f9fb";
 const chart_scroll_color_fg = "#ddeaf3";
 const chart_chart_color_bg = "#ecf0f3";
+const chart_chart_color_bg_alpha = 0.2;
 const chart_chart_color_fg = "#96a2aa";
+const chart_chart_color_fg_alpha = 1.0;
 
 function chart_create(chart_id, container){
     container.innerHTML = "<div class='chart_chart_wrap'>"
@@ -187,23 +189,67 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
     const w = ctx2d.canvas.width;
     ctx2d.clearRect(0, 0, w, h);
 
-    const line_cnt = 6;
+    function step_magic(min, max, lines_cnt){
+        let value1 = (max - min) / lines_cnt;
+        const mult = lines_cnt;
+        let step = mult;
+        while (step < value1){
+            step *= mult;
+        }
+        step /= mult;
+        value1 = Math.round(value1 / step) * step;
+        return {step: step, value1: value1};
+    }
+
+    const min = chart_state.scaled_minmax.min;
+    const max = chart_state.scaled_minmax.max;
+    const step_data = step_magic(min, max, 5 /* lines cnt */);
+    const h1 = Math.round(1.0 * (step_data.value1 - min) / (max - min) * h);
+    const h_step = Math.round(1.0 * step_data.value1 / (max - min) * h);
 
     ctx2d.fillStyle = chart_chart_color_bg;
+    ctx2d.globalAlpha = chart_chart_color_bg_alpha;
     ctx2d.lineWidth = 1;
     ctx2d.beginPath();
-    const h1 = h / line_cnt;
-    for (let y = 0; y < h; y += h1){
+    ctx2d.moveTo(0, h);
+    ctx2d.lineTo(w, h);
+    for (let y = h1; y < h; y += h_step){
         ctx2d.moveTo(0, h-y);
         ctx2d.lineTo(w, h-y);
     }
     ctx2d.stroke();
 
     ctx2d.fillStyle = chart_chart_color_fg;
-    const minmax = chart_data_minmax(chart_data, chart_state);
-    const value_step = (minmax.max - minmax.min) / line_cnt;
-    for (let value = minmax.min, y = 0; value < minmax.max; value += value_step, y += h1){
-        ctx2d.fillText(Math.ceil(value), 0, h-y);
+    ctx2d.globalAlpha = chart_chart_color_fg_alpha;
+    ctx2d.fillText(min, 0, h);
+    for (let value = step_data.value1, y = h1; value < max; value += step_data.step, y += h_step){
+        ctx2d.fillText(value, 0, h-y);
+    }
+
+    function time_data(chart_data){
+        for (const i in chart_data.columns){
+            const column_id = chart_data.columns[i][0];
+            if (chart_data.types[column_id] == "x"){
+                return chart_data.columns[i];
+            }
+        }
+        return null;
+    }
+
+    const t_line = time_data(chart_data);
+    // skip the 1st
+    const t_count = t_line.length - 1;
+    const t_begin = Math.floor(t_count * chart_state.scroll_left) + 1;
+    const t_end = Math.ceil(t_count * chart_state.scroll_right) + 1;
+    ctx2d.fillStyle = chart_chart_color_fg;
+    ctx2d.globalAlpha = chart_chart_color_fg_alpha;
+    for (let i = t_begin, t_w = 0; i < t_end; ++i){
+        const x = Math.round(1.0 * (i - t_begin) / (t_end - t_begin) * w);
+        if (x < t_w){
+            continue;
+        }
+        ctx2d.fillText(new Date(t_line[i]).toString(), x, h);
+        t_w += ctx2d.measureText(new Date(t_line[i]).toString()).width * 1.5;
     }
 }
 
