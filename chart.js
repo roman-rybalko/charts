@@ -330,6 +330,19 @@ function chart_chart_create(chart_id, chart_data, chart_state){
     chart_canvas_2d.addEventListener("mousemove", cursor_update);
 }
 
+function chart_2d_browser_test(ctx2d){
+    ctx2d.fillStyle = chart_scroll_color_bg;
+    ctx2d.fillRect(0, 0, ctx2d.canvas.width, ctx2d.canvas.height);
+    function rgba2hex(r, g, b, a){
+        return "#" + ((r << 24 | g << 16 | b << 8 | a)>>>0).toString(16);
+    }
+    const data_rgba = ctx2d.getImageData(1, 1, 1, 1).data;
+    const color_hex = rgba2hex(data_rgba[0], data_rgba[1], data_rgba[2], data_rgba[3]);
+    if (color_hex.toUpperCase() != chart_scroll_color_bg.toUpperCase()){
+        throw "CanvasRenderingContext2D does not support the required color scheme (" + chart_scroll_color_bg + ")";
+    }
+}
+
 function chart_scroll_2d_init(ctx2d, chart_state){
     chart_state.scroll = {
         left: chart_state.scroll_left * ctx2d.canvas.width,
@@ -338,6 +351,7 @@ function chart_scroll_2d_init(ctx2d, chart_state){
         scaling_right: false,
         moving: false
     };
+    chart_2d_browser_test(ctx2d);
 }
 
 function chart_scroll_2d_draw(ctx2d, state){
