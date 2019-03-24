@@ -9,7 +9,7 @@ function load(){
     document.body.innerHTML = "Loading " + data_file + " ...";
     $.getJSON(data_file).done(function(data){
         let html = data.length + " charts loaded";
-        html += "<br><a href='#' onclick='change_bgcolor()'>Day/Night</a>";
+        html += "<br><a href='#' onclick='change_bgcolor(); return false;'>Day/Night</a>";
         for (const i in data){
             const div_id = "chart" + i;
             html += "<div id='" + div_id + "' style='margin-left:50px;margin-right:50px;'></div>";
