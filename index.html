@@ -8,17 +8,21 @@ function load(){
     const data_file = $("#url").val();
     document.body.innerHTML = "Loading " + data_file + " ...";
     $.getJSON(data_file).done(function(data){
-        let html = data.length + " charts loaded";
-        html += "<br><a href='#' onclick='change_bgcolor(); return false;'>Day/Night</a>";
-        for (const i in data){
-            const div_id = "chart" + i;
-            html += "<div id='" + div_id + "' style='margin-left:50px;margin-right:50px;'></div>";
-        }
-        document.body.innerHTML = html;
-        for (const i in data){
-            const div_id = "chart" + i;
-            const chart_data = data[i];
-            chart(div_id, chart_data);
+        try {
+            let html = data.length + " charts loaded";
+            html += "<br><a href='#' onclick='change_bgcolor(); return false;'>Day/Night</a>";
+            for (const i in data){
+                const div_id = "chart" + i;
+                html += "<div id='" + div_id + "' style='margin-left:50px;margin-right:50px;'></div>";
+            }
+            document.body.innerHTML = html;
+            for (const i in data){
+                const div_id = "chart" + i;
+                const chart_data = data[i];
+                chart(div_id, chart_data);
+            }
+        } catch(e) {
+            document.body.innerHTML ="Your browser is not supported: " + e;
         }
     }).fail(function(jqXHR){
         document.body.innerHTML = "Loading " + data_file + " failed: " + jqXHR.status + " " + jqXHR.statusText;
