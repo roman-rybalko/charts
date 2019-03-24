@@ -292,6 +292,17 @@ function chart_chart_html_draw(chart_id, chart_data, chart_state){
     }
 }
 
+function chart_get_hid_pointer_x(e){
+    if (e.clientX != undefined){
+        return e.clientX;
+    }
+    if (e.changedTouches != undefined){
+        const touches = e.changedTouches;
+        return touches[0].clientX;
+    }
+    throw "No supported HID interfaces found for pointer event";
+}
+
 function chart_chart_create(chart_id, chart_data, chart_state){
     const chart_canvas_2d = document.getElementById(chart_id + "_chart1");
     const chart_2d = chart_canvas_2d.getContext("2d");
@@ -321,7 +332,7 @@ function chart_chart_create(chart_id, chart_data, chart_state){
     window.addEventListener("resize", onresize);
 
     function cursor_update(e){
-        const x = e.clientX - chart_canvas_2d.getBoundingClientRect().left - window.scrollX;
+        const x = chart_get_hid_pointer_x(e) - chart_canvas_2d.getBoundingClientRect().left - window.scrollX;
         chart_state.chart.cursor = 1.0 * x / chart_canvas_2d.width;
         chart_state.chart.cursor_x = x;
         chart_chart_2d_draw(chart_2d, chart_data, chart_state);
@@ -409,7 +420,7 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
     }
 
     function change(e){
-        const x = e.clientX - scroll_canvas_2d.getBoundingClientRect().left - window.scrollX;
+        const x = chart_get_hid_pointer_x(e) - scroll_canvas_2d.getBoundingClientRect().left - window.scrollX;
         const move = x - chart_state.scroll.last_x;
         let changed = false;
         if (chart_state.scroll.scaling_left){
@@ -451,11 +462,14 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
         chart_state.scroll.moving = false;
         chart_state.scroll.scaling_right = false;
         window.removeEventListener("mousemove", change);
+        window.removeEventListener("touchmove", change);
         window.removeEventListener("mouseup", stop_change);
+        window.removeEventListener("touchend", stop_change);
+        window.removeEventListener("touchcancel", stop_change);
     }
 
     function start_change(e){
-        const x = e.clientX - scroll_canvas_2d.getBoundingClientRect().left - window.scrollX;
+        const x = chart_get_hid_pointer_x(e) - scroll_canvas_2d.getBoundingClientRect().left - window.scrollX;
         // increasing borders to border width x 3 for convenience
         if (x >= chart_state.scroll.left - chart_scroll_width && x <= chart_state.scroll.left + chart_scroll_width*2){
             chart_state.scroll.scaling_left = true;
@@ -467,11 +481,15 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
         if (chart_state.scroll.scaling_left || chart_state.scroll.moving || chart_state.scroll.scaling_right){
             chart_state.scroll.last_x = x;
             window.addEventListener("mousemove", change);
+            window.addEventListener("touchmove", change);
             window.addEventListener("mouseup", stop_change);
+            window.addEventListener("touchend", stop_change);
+            window.addEventListener("touchcancel", stop_change);
             chart_state.chart.cursor = 0;
         }
     }
     scroll_canvas_gl.addEventListener("mousedown", start_change);
+    scroll_canvas_gl.addEventListener("touchstart", start_change);
 }
 
 function chart_data_minmax(chart_data, chart_state, no_scale){
