@@ -42,6 +42,15 @@ function chart_time_data(chart_data){
     return null;
 }
 
+function chart_charts_enabled(chart_state){
+    for (const i in chart_state.columns_enabled){
+        if (chart_state.columns_enabled[i]){
+            return true;
+        }
+    }
+    return false;
+}
+
 function chart_legend_create(chart_id, chart_data, chart_state){
     const legend_div = document.getElementById(chart_id + "_legend");
     chart_state.columns_enabled = {};
@@ -183,6 +192,11 @@ function chart_gl_init(gl, chart_data){
 
 function chart_gl_draw(gl, gl_state, chart_state, no_scale){
     gl.clear(gl.COLOR_BUFFER_BIT);
+
+    if (!chart_charts_enabled(chart_state)){
+        return;
+    }
+
     if (no_scale){
         gl.uniformMatrix4fv(gl_state.proj_loc, false, new Float32Array(chart_proj_ortho(0, gl_state.count, chart_state.enabled_minmax.min, chart_state.enabled_minmax.max)));
     } else {
@@ -211,6 +225,10 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
     const h = ctx2d.canvas.height;
     const w = ctx2d.canvas.width;
     ctx2d.clearRect(0, 0, w, h);
+
+    if (!chart_charts_enabled(chart_state)){
+        return;
+    }
 
     function step_magic(min, max, lines_cnt){
         let value1 = (max - min) / lines_cnt;
