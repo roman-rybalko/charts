@@ -43,14 +43,16 @@ function chart_legend_create(chart_id, chart_data, chart_state){
     const legend_div = document.getElementById(chart_id + "_legend");
     chart_state.columns_enabled = {};
 
+    let html = "";
     chart_column_foreach(chart_data, function(column_id){
         const column_name = chart_data.names[column_id];
         const column_color = chart_data.colors[column_id];
-        legend_div.innerHTML += "<label class='chart_legend_checkbox' style='--main-bg-color:" + column_color + ";'>" + column_name
+        html += "<label class='chart_legend_checkbox' style='--main-bg-color:" + column_color + ";'>" + column_name
             + "<input type='checkbox' checked='checked' id='" + chart_id + "_legend_column_" + column_id + "'>"
             + "<span class='chart_legend_checkbox_customized'></span>"
             + "</label>";
     });
+    legend_div.innerHTML = html;
 
     chart_column_foreach(chart_data, function(column_id){
         const column_control = document.getElementById(chart_id + "_legend_column_" + column_id);
@@ -275,16 +277,16 @@ function chart_chart_html_draw(chart_id, chart_data, chart_state){
         // skip the 1st
         const count = t_data.length - 1;
         const i = Math.round(chart_state.scroll_left * count + (chart_state.scroll_right - chart_state.scroll_left) * count * cursor) + 1;
-        caption_div.innerHTML = new Date(t_data[i]).toString() + "<br>";
+        let html = new Date(t_data[i]).toString() + "<br>";
         chart_column_foreach(chart_data, function(column_id, column_data){
             if (!chart_state.columns_enabled[column_id]){
                 return;
             }
             const column_name = chart_data.names[column_id];
             const column_color = chart_data.colors[column_id];
-            caption_div.innerHTML += "<div style='color:" + column_color + ";'>" + column_data[i]
-                + column_name + "</div>";
+            html += "<div style='color:" + column_color + ";'>" + column_data[i] + "&nbsp;" + column_name + "</div>";
         });
+        caption_div.innerHTML = html;
     } else {
         caption_div.style.visibility = "hidden";
     }
