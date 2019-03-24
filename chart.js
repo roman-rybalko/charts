@@ -230,67 +230,65 @@ function chart_chart_2d_draw(ctx2d, chart_data, chart_state){
         return;
     }
 
-    /*
-     * This logic is broken.
-     * Needs fixing & refactoring.
-     */
+    // value
+    {
+        const lines_cnt = 5;
+        const v_step_divisor = 10;
 
-    function step_magic(min, max, lines_cnt){
-        let value1 = (max - min) / lines_cnt;
-        const mult = lines_cnt;
-        let step = mult;
-        while (step < value1){
-            step *= mult;
-        }
-        step /= mult;
-        value1 = Math.round(value1 / step) * step;
-        return {step: step, value1: value1};
-    }
+        const min = chart_state.scaled_minmax.min;
+        const max = chart_state.scaled_minmax.max;
+        const v_step = Math.pow(v_step_divisor, Math.round(Math.log((max - min) / lines_cnt) / Math.log(v_step_divisor)));
+        const v1 = Math.ceil(min / v_step) * v_step;
+        const y_step = Math.round(v_step / (max - min) * h);
+        const y1 = Math.round((v1 - min) / (max - min) * h);
 
-    const min = chart_state.scaled_minmax.min;
-    const max = chart_state.scaled_minmax.max;
-    const step_data = step_magic(min, max, 5 /* lines cnt */);
-    const h1 = Math.round(1.0 * (step_data.value1 - min) / (max - min) * h);
-    const h_step = Math.round(1.0 * step_data.value1 / (max - min) * h);
-
-    ctx2d.strokeStyle = chart_chart_color_bg;
-    ctx2d.beginPath();
-    ctx2d.moveTo(0, h);
-    ctx2d.lineTo(w, h);
-    for (let y = h1; y < h; y += h_step){
-        ctx2d.moveTo(0, h-y);
-        ctx2d.lineTo(w, h-y);
-    }
-    ctx2d.stroke();
-
-    ctx2d.fillStyle = chart_chart_color_fg;
-    ctx2d.fillText(min, 0, h);
-    for (let value = step_data.value1, y = h1; value < max; value += step_data.step, y += h_step){
-        ctx2d.fillText(value, 0, h-y);
-    }
-
-    const t_line = chart_time_data(chart_data);
-    // skip the 1st
-    const t_count = t_line.length - 1;
-    const t_begin = Math.floor(t_count * chart_state.scroll_left) + 1;
-    const t_end = Math.ceil(t_count * chart_state.scroll_right) + 1;
-    ctx2d.fillStyle = chart_chart_color_fg;
-    for (let i = t_begin, t_w = 0; i < t_end; ++i){
-        const x = Math.round(1.0 * (i - t_begin) / (t_end - t_begin) * w);
-        if (x < t_w){
-            continue;
-        }
-        ctx2d.fillText(new Date(t_line[i]).toString(), x, h);
-        t_w += ctx2d.measureText(new Date(t_line[i]).toString()).width * 1.5;
-    }
-
-    const c_x = chart_state.chart.cursor_x;
-    if (c_x){
         ctx2d.strokeStyle = chart_chart_color_bg;
         ctx2d.beginPath();
-        ctx2d.moveTo(c_x, 0);
-        ctx2d.lineTo(c_x, h);
+        ctx2d.moveTo(0, h);
+        ctx2d.lineTo(w, h);
+        for (let y = y1; y < h; y += y_step){
+            ctx2d.moveTo(0, h-y);
+            ctx2d.lineTo(w, h-y);
+        }
         ctx2d.stroke();
+
+        ctx2d.fillStyle = chart_chart_color_fg;
+        ctx2d.fillText(min, 0, h);
+        for (let value = v1, y = y1; value < max; value += v_step, y += y_step){
+            ctx2d.fillText(value, 0, h-y);
+        }
+    }
+
+    // time
+    {
+        const t_data = chart_time_data(chart_data);
+        // skip the 1st
+        const t_count = t_data.length - 1;
+        const t_begin = Math.floor(t_count * chart_state.scroll_left) + 1;
+        const t_end = Math.ceil(t_count * chart_state.scroll_right) + 1;
+        ctx2d.fillStyle = chart_chart_color_fg;
+        for (let i = t_begin, x_filled = 0; i < t_end; ++i){
+            const x = Math.round(1.0 * (i - t_begin) / (t_end - t_begin) * w);
+            if (x < x_filled){
+                continue;
+            }
+            const text = new Date(t_data[i]).toString();
+            const text_w = ctx2d.measureText(text).width;
+            ctx2d.fillText(text, x + text_w / 2, h);
+            x_filled += text_w + text_w / 2;
+        }
+    }
+
+    // cursor
+    {
+        const c_x = chart_state.chart.cursor_x;
+        if (c_x){
+            ctx2d.strokeStyle = chart_chart_color_bg;
+            ctx2d.beginPath();
+            ctx2d.moveTo(c_x, 0);
+            ctx2d.lineTo(c_x, h);
+            ctx2d.stroke();
+        }
     }
 }
 
