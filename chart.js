@@ -4,8 +4,11 @@ const chart_scroll_color_bg = "#f5f9fb80";
 const chart_scroll_color_fg = "#ddeaf380";
 const chart_chart_color_bg = "#dfe6eb";
 const chart_chart_color_fg = "#96a2aa";
+const chart_animation_speed = 1; // in conditional racoons
+const chart_animation_duration = 1.5; // seconds
 
-function chart_create(chart_id, container){
+function chart_create(chart_id){
+    const container = document.getElementById(chart_id);
     container.innerHTML = "<div class='chart_chart_wrap'>"
         + "<canvas id='" + chart_id + "_chart1' class='chart_chart'></canvas>"
         + "<canvas id='" + chart_id + "_chart2' class='chart_chart' style='z-index:-1;'></canvas>"
@@ -57,12 +60,13 @@ function chart_legend_create(chart_id, chart_data, chart_state){
     chart_column_foreach(chart_data, function(column_id){
         const column_control = document.getElementById(chart_id + "_legend_column_" + column_id);
         chart_state.columns_enabled[column_id] = true;
-        column_control.addEventListener("change", function(){
+
+        function onchange(){
             chart_state.columns_enabled[column_id] = !chart_state.columns_enabled[column_id];
             chart_state.compute();
-            chart_state.scroll_draw();
-            chart_state.chart_draw();
-        });
+            chart_state.animation_start();
+        }
+        column_control.addEventListener("change", onchange);
     });
 }
 
@@ -341,7 +345,7 @@ function chart_chart_create(chart_id, chart_data, chart_state){
     chart_canvas_2d.addEventListener("mousemove", cursor_update);
 }
 
-function chart_2d_browser_test(ctx2d){
+function chart_browser_test_2d(ctx2d){
     ctx2d.fillStyle = chart_scroll_color_bg;
     ctx2d.fillRect(0, 0, ctx2d.canvas.width, ctx2d.canvas.height);
     function rgba2hex(r, g, b, a){
@@ -362,7 +366,7 @@ function chart_scroll_2d_init(ctx2d, chart_state){
         scaling_right: false,
         moving: false
     };
-    chart_2d_browser_test(ctx2d);
+    chart_browser_test_2d(ctx2d);
 }
 
 function chart_scroll_2d_draw(ctx2d, state){
@@ -451,9 +455,9 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
         }
         if (changed){
             chart_state.scroll.last_x = x;
-            chart_state.compute();
             chart_scroll_2d_draw(scroll_2d, chart_state);
-            chart_state.chart_draw();
+            chart_state.compute();
+            chart_state.animation_start();
         }
     }
 
@@ -515,17 +519,83 @@ function chart_data_minmax(chart_data, chart_state, no_scale){
     return {min: min, max: max};
 }
 
-function chart(div_id, chart_data){
-    const container = document.getElementById(div_id);
-    chart_create(div_id, container);
-    const chart_state = {scroll_left: 0, scroll_right: 1};
+function chart_compute_init(chart_data, chart_state){
     chart_state.compute = function(){
-        chart_state.scaled_minmax = chart_data_minmax(chart_data, chart_state);
-        chart_state.enabled_minmax = chart_data_minmax(chart_data, chart_state, "no scale");
+        chart_state.animation.scaled_minmax = chart_data_minmax(chart_data, chart_state);
+        chart_state.animation.enabled_minmax = chart_data_minmax(chart_data, chart_state, "no scale");
     };
+    chart_state.compute();
+    chart_state.scaled_minmax = chart_state.animation.scaled_minmax;
+    chart_state.enabled_minmax = chart_state.animation.enabled_minmax;
+}
+
+function chart_animation_draw(chart_state){
+    const finish = new Date().getTime() - chart_state.animation.time_start > chart_animation_duration * 1000;
+    const frame = ++chart_state.animation.frame;
+
+    function value_next(coef, v_start, v_end){
+        const diff = v_end - v_start;
+        return v_start + coef * diff;
+    }
+
+    if (!finish){
+        const x = frame * chart_animation_speed;
+        const coef = 1.0 - Math.sin(x)/x; // 0 -> 1
+        chart_state.scaled_minmax = {
+            min: value_next(coef, chart_state.animation.orig.scaled_minmax.min, chart_state.animation.scaled_minmax.min),
+            max: value_next(coef, chart_state.animation.orig.scaled_minmax.max, chart_state.animation.scaled_minmax.max)
+        };
+        chart_state.enabled_minmax = {
+            min: value_next(coef, chart_state.animation.orig.enabled_minmax.min, chart_state.animation.enabled_minmax.min),
+            max: value_next(coef, chart_state.animation.orig.enabled_minmax.max, chart_state.animation.enabled_minmax.max)
+        };
+    } else {
+        chart_state.scaled_minmax = chart_state.animation.scaled_minmax;
+        chart_state.enabled_minmax = chart_state.animation.enabled_minmax;
+    }
+
+    chart_state.chart_draw();
+    chart_state.scroll_draw();
+
+    if (!finish){
+        window.requestAnimationFrame(function(){
+            chart_animation_draw(chart_state);
+        });
+    } else {
+        chart_state.animation.frame = 0;
+    }
+}
+
+function chart_animation_init(chart_state){
+    chart_state.animation = {
+        frame: 0,
+        time_start: 0
+    };
+
+    chart_state.animation_start = function(){
+        chart_state.animation.time_start = new Date().getTime();
+        if (chart_state.animation.frame){
+            chart_state.animation.frame = 0; // restart
+            return;
+        }
+        chart_state.animation.orig = {
+            scaled_minmax: chart_state.scaled_minmax,
+            enabled_minmax: chart_state.enabled_minmax
+        };
+        window.requestAnimationFrame(function(){
+            chart_animation_draw(chart_state);
+        });
+    }
+}
+
+function chart(div_id, chart_data){
+    const chart_state = {scroll_left: 0, scroll_right: 1};
+    chart_animation_init(chart_state);
+    chart_create(div_id);
     chart_legend_create(div_id, chart_data, chart_state);
-    chart_state.enabled_minmax = chart_data_minmax(chart_data, chart_state, "no scale");
+    chart_compute_init(chart_data, chart_state);
     chart_scroll_create(div_id, chart_data, chart_state);
-    chart_state.scaled_minmax = chart_data_minmax(chart_data, chart_state);
     chart_chart_create(div_id, chart_data, chart_state);
+    chart_state.compute(); // recompute
+    chart_state.animation_start();
 }
