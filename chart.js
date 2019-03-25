@@ -79,9 +79,9 @@ function chart_legend_create(chart_id, chart_data, chart_state){
     });
 }
 
-const chart_vs_src = `
-    attribute highp float a_x;
-    attribute highp float a_y;
+const chart_vs_src = `#version 300 es
+    in highp float a_x;
+    in highp float a_y;
     uniform mat4 u_proj;
     uniform mat4 u_view;
     void main(void){
@@ -89,10 +89,11 @@ const chart_vs_src = `
     }
 `;
 
-const chart_fs_src = `
+const chart_fs_src = `#version 300 es
     uniform lowp vec4 u_color;
+    out lowp vec4 fragColor;
     void main(void){
-        gl_FragColor = u_color;
+        fragColor = u_color;
     }
 `;
 
@@ -334,7 +335,7 @@ function chart_chart_create(chart_id, chart_data, chart_state){
     chart_chart_init(chart_2d, chart_state);
 
     const chart_canvas_gl = document.getElementById(chart_id + "_chart2");
-    const chart_gl = chart_canvas_gl.getContext("webgl");
+    const chart_gl = chart_canvas_gl.getContext("webgl2");
     const chart_gl_state = chart_gl_init(chart_gl, chart_data);
 
     chart_state.chart_draw = function(){
@@ -409,7 +410,7 @@ function chart_scroll_create(chart_id, chart_data, chart_state){
     chart_scroll_2d_init(scroll_2d, chart_state);
 
     const scroll_canvas_gl = document.getElementById(chart_id + "_scroll2");
-    const scroll_gl = scroll_canvas_gl.getContext("webgl");
+    const scroll_gl = scroll_canvas_gl.getContext("webgl2");
     const scroll_gl_state = chart_gl_init(scroll_gl, chart_data);
 
     chart_state.scroll_draw = function(){
