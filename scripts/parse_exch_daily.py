@@ -25,11 +25,10 @@ for line in f:
     ts = int(time.mktime(t) * 1000)
     chart_id = name.lower()
     chart_name = name
-    data[0]["types"][chart_id] = "line"
-    data[0]["names"][chart_id] = chart_name
-    if chart_id not in data[0]["colors"]:
+    if chart_id not in data[0]["types"]:
+        data[0]["types"][chart_id] = "line"
+        data[0]["names"][chart_id] = chart_name
         data[0]["colors"][chart_id] = "#%0.6x" % random.getrandbits(24)
-    if chart_id not in tmp:
         tmp[chart_id] = {}
     try:
         tmp[chart_id][ts] = float(value)
@@ -50,6 +49,8 @@ for chart_id in tmp:
             values.append(0)
         else:
             values.append(tmp[chart_id][i])
+        if values[-1] == 0 and len(values) > 1:
+            values[-1] = values[-2]
     data[0]["columns"].append([chart_id] + values)
 
 print(json.dumps(data))
