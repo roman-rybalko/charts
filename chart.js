@@ -79,7 +79,7 @@ function chart_legend_create(chart_id, chart_data, chart_state){
     });
 }
 
-const chart_vs_src = `#version 300 es
+const chart_vs_src = `#version 310 es
     in highp float a_x;
     in highp float a_y;
     uniform mat4 u_proj;
@@ -89,7 +89,7 @@ const chart_vs_src = `#version 300 es
     }
 `;
 
-const chart_fs_src = `#version 300 es
+const chart_fs_src = `#version 310 es
     uniform lowp vec4 u_color;
     out lowp vec4 fragColor;
     void main(void){
