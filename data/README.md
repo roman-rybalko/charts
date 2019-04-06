@@ -1,3 +1,3 @@
-# Source
+# Sample Dataset
 
-[datahub.io](https://datahub.io/search?q=exchange+rates)
+Source: [datahub.io](https://datahub.io/search?q=exchange+rates)
