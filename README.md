@@ -1,5 +1,5 @@
 # Telegram Contest - Charts
 
-Fancy webgl-based charts. Key metrics are configurable.
+Fancy webgl-based charts. Key options are configurable.
 
-Deployed [here](http://romanr.info/chart/).
+Deployed [here](http://romanr.info/js/charts/).
